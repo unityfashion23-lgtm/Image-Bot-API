@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Image Fetcher Chatbot - Maharaj</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f9; }
+        #chat-window { border: 1px solid #ccc; padding: 15px; height: 350px; overflow-y: scroll; background-color: white; margin-bottom: 10px; border-radius: 8px; }
+        .message { margin-bottom: 10px; padding: 8px; border-radius: 5px; }
+        .user { text-align: right; background-color: #dcf8c6; }
+        .bot { text-align: left; background-color: #eceff1; }
+        .bot img { max-width: 100%; height: auto; border-radius: 4px; margin-top: 5px; }
+        input[type="text"] { padding: 10px; width: 80%; border: 1px solid #ccc; border-radius: 4px; }
+        button { padding: 10px; width: 18%; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <h2>🤖 Aapka Image Fetcher Bot</h2>
+
+    <div id="chat-window">
+        <div class="message bot">Hello Maharaj, main aapke liye saved images fetch kar sakta hoon. Kripya image ka naam type karein.</div>
+    </div>
+
+    <input type="text" id="user-input" placeholder="Type image name here (e.g., lion, car)" onkeydown="if(event.key === 'Enter') sendMessage()">
+    <button onclick="sendMessage()">Send</button>
+
+    <script>
+        // API ka URL (Jab aap app.py chala rahe honge)
+        const API_URL = 'http://127.0.0.1:5000/get_image'; 
+        const chatWindow = document.getElementById('chat-window');
+        const userInput = document.getElementById('user-input');
+
+        // Chat window mein message add karne ka function
+        function appendMessage(sender, content, isImage = false) {
+            const msgDiv = document.createElement('div');
+            msgDiv.classList.add('message', sender);
+            
+            if (isImage) {
+                // Agar content ek image URL hai, toh <img> tag use karein
+                const img = document.createElement('img');
+                img.src = content;
+                img.alt = "Fetched Image";
+                msgDiv.appendChild(img);
+            } else {
+                // Agar content text hai
+                msgDiv.textContent = content;
+            }
+            
+            chatWindow.appendChild(msgDiv);
+            // Sabse naye message par scroll karein
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+
+        // Message send karne ka main function
+        async function sendMessage() {
+            const query = userInput.value.trim();
+            if (query === "") return;
+
+            // 1. User ka message display karein
+            appendMessage('user', query);
+            userInput.value = ''; // Input field clear karein
+
+            // 2. Python API ko request bhejein
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query: query })
+                });
+
+                // Check karein ki response successful tha (Status 200)
+                if (response.ok) {
+                    // Agar response successful hai, toh woh image data hai
+                    // Response ko Blob mein convert karke local URL banayein
+                    const blob = await response.blob();
+                    const imageUrl = URL.createObjectURL(blob);
+                    
+                    // 3. Bot reply mein image display karein
+                    appendMessage('bot', imageUrl, true);
+                    
+                } else {
+                    // Agar koi error aaya (e.g., Image Not Found - Status 404)
+                    const errorData = await response.json();
+                    
+                    // 3. Bot reply mein error message display karein
+                    appendMessage('bot', errorData.message || "An error occurred, Sir.");
+                }
+
+            } catch (error) {
+                console.error('Error fetching image:', error);
+                appendMessage('bot', "Connection error ho gaya, Maharaj. Check kariye ki server chal raha hai.");
+            }
+        }
+    </script>
+</body>
+</html>
